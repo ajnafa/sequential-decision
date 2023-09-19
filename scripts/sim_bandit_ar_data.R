@@ -248,6 +248,9 @@ prob_data <- arrow::read_parquet(
     "output/data/binomial_bandit_ar1_track_data.parquet"
 )
 
+# Read the simulated data
+df <- arrow::read_parquet("output/data/binomial_bandit_ar1_data.parquet")
+
 # Extract the results of the final model
 posterior <- fit$draws(c('prob_best', 'theta_diff', 'bias'), format = 'draws_df')
 
@@ -278,6 +281,7 @@ ate_plot <- ggplot(ate_draws, aes(x = time, y = theta_diff, group = time)) +
         point_interval = mean_qi,
         scale = 1
     ) +
+    geom_hline(yintercept = delta, linetype = "dashed", color = 'green') +
     scale_fill_manual(
         "Direction of Effect",
         values = c("#F8766D", "#00BFC4"),
@@ -372,3 +376,24 @@ summ <- posterior::summarise_draws(fit$draws())
 
 # Check the Rhat values
 bayesplot::mcmc_rhat_hist(summ$rhat)
+
+# Posterior Predictive Checks
+y_rep <- fit$draws('y_rep', format = 'matrix')
+pp_check_plot <- bayesplot::pp_check(
+    df$purchases, 
+    y_rep[1:200,], 
+    group = df$arm_id,
+    fun = bayesplot::ppc_dens_overlay_grouped
+    )
+
+# Save the plot
+ggsave(
+    filename = "figures/pp_check_plot_t90.png",
+    plot = pp_check_plot,
+    width = 15.5,
+    height = 10,
+    units = "in",
+    dpi = "retina",
+    bg = 'white',
+    type = "cairo"
+)
